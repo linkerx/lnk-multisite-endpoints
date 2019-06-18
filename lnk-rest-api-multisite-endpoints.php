@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Plugin Name: LNK REST API Multisite Endpoints
+ * Plugin Name: LNK-REST-API-MULTISITE Endpoints
  * Plugin URI: https://github.com/linkerx/lnk-rest-api-sites-endpoint
  * Description: Endpoints varios para Wordpress Multisite
  * Version: 0.1
@@ -80,6 +80,7 @@ function lnk_get_site(WP_REST_Request $request){
   $site = $sites[0];
 
   switch_to_blog($site->blog_id);
+  $site->frontpage = get_option('page_on_front');
   $site->blog_name = get_bloginfo('name');
   $site->blog_description = get_bloginfo('description');
   $site->wpurl = get_bloginfo('wpurl');
@@ -95,6 +96,9 @@ function lnk_get_site(WP_REST_Request $request){
  * @return WP_REST_Response: Lista de posts
  */
  function lnk_get_sites_posts(WP_REST_Request $request){
+
+   $count = $request->get_param("count");
+
    $sites_args = array(
      'public' => 1 // los posts tb solo publicos?
    );
@@ -105,7 +109,7 @@ function lnk_get_site(WP_REST_Request $request){
      switch_to_blog($site->blog_id);
 
      $posts_args = array(
-        'numberposts' => 12
+        'numberposts' => $count
      );
      $posts = get_posts($posts_args);
 
@@ -116,14 +120,20 @@ function lnk_get_site(WP_REST_Request $request){
          'blog_url' => $site->path
        );
 
-       $posts[$post_key]->thumbnail = get_the_post_thumbnail_url($post->ID,'thumbnail');
+
+       $terms = wp_get_post_categories($post->ID);
+       if(is_array($terms)){
+         $posts[$post_key]->the_term = get_term($terms[0])->slug;
+       }
+
+       $posts[$post_key]->thumbnail = get_the_post_thumbnail_url($post->ID);
      }
 
      $allPosts = array_merge($allPosts,$posts);
      restore_current_blog();
    }
    usort($allPosts,'lnk_compare_by_date');
-   $allPosts = array_slice($allPosts,0,12);
+   $allPosts = array_slice($allPosts,0,$count);
    return new WP_REST_Response($allPosts, 200 );
  }
 
