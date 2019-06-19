@@ -33,6 +33,12 @@ function lnk_sites_register_route(){
     'callback' => 'lnk_get_site',
   ));
 
+  // Endpoint: Posts de Sitio Unico
+  register_rest_route( $route, '/site-posts/(?P<name>[a-zA-Z0-9-]+)', array(
+    'methods' => WP_REST_Server::READABLE,
+    'callback' => 'lnk_get_site_posts',
+  ));
+  
   // Endpoint: Ultimos Post de Todos Los Sitios
   register_rest_route( $route, '/sites-posts', array(
     'methods' => WP_REST_Server::READABLE,
@@ -87,6 +93,47 @@ function lnk_get_site(WP_REST_Request $request){
   restore_current_blog();
 
   return new WP_REST_Response($site, 200 );
+}
+
+/**
+ * Home Posts de Sitio
+ *
+ * @param WP_REST_Request $request Id del sitio
+ * @return WP_REST_Response $sites Datos del sitio
+ */
+function lnk_get_site_posts(WP_REST_Request $request){
+
+  $sites_args = array(
+    'path' => '/'.$request['name'].'/' // los posts tb solo publicos?
+  );
+  $sites = get_sites($sites_args);
+  if(count($sites) != 1){
+    return new WP_REST_Response('no existe el área', 404 );
+  }
+  $site = $sites[0];
+
+  switch_to_blog($site->blog_id);
+
+  $posts = get_posts($posts_args);
+
+  foreach($posts as $post_key => $post){
+    $posts[$post_key]->blog = array(
+      'blog_id' => $site->blog_id,
+      'blog_name' => get_bloginfo('name'),
+      'blog_url' => $site->path
+    );
+
+    $terms = wp_get_post_categories($post->ID);
+    if(is_array($terms)){
+      $posts[$post_key]->the_term = get_term($terms[0])->slug;
+    }
+
+    $posts[$post_key]->thumbnail = get_the_post_thumbnail_url($post->ID);
+  }
+
+  restore_current_blog();
+
+  return new WP_REST_Response($posts, 200 );
 }
 
 /**
