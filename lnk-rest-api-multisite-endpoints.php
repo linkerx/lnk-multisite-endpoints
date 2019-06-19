@@ -87,6 +87,11 @@ function lnk_get_site(WP_REST_Request $request){
 
   switch_to_blog($site->blog_id);
   $site->frontpage = get_option('page_on_front');
+
+  if($site->frontpage != 0){
+    $site->page = get_post($site->frontpage);
+  }
+
   $site->blog_name = get_bloginfo('name');
   $site->blog_description = get_bloginfo('description');
   $site->wpurl = get_bloginfo('wpurl');
