@@ -1,8 +1,8 @@
 <?php
 
 /**
- * Plugin Name: LNK-REST-API-MULTISITE Endpoints para UPCN
- * Plugin URI: https://github.com/linkerx/lnk-rest-api-sites-endpoint
+ * Plugin Name: LNK-MULTISITE-ENDPOINTS
+ * Plugin URI: https://github.com/linkerx/lnk-multisite-endpoint
  * Description: Endpoints varios para Wordpress Multisite
  * Version: 0.1
  * Author: Diego Martinez Diaz
@@ -103,12 +103,6 @@ function lnk_get_site(WP_REST_Request $request){
   $site->blog_description = get_bloginfo('description');
   $site->wpurl = get_bloginfo('wpurl');
 
-  // info delegacion
-  $site->info_direccion = get_option('delegacion_info_direccion','Calle XXX, Localidad, Río Negro');
-  $site->info_telefono = get_option('delegacion_info_telefono','+54 XXX - XXX XXXX');
-  $site->info_email = get_option('delegacion_info_email','email_delegacion@upcn-rionegro.com.ar');
-  $site->info_imagen = get_option('delegacion_info_imagen','http://back.upcn-rionegro.com.ar/wp-content/uploads/2003/04/logo_upcn.jpg');
-
   restore_current_blog();
 
   return new WP_REST_Response($site, 200 );
@@ -165,6 +159,8 @@ function lnk_get_site_posts(WP_REST_Request $request){
  function lnk_get_sites_posts(WP_REST_Request $request){
 
    $count = $request->get_param("count");
+   $agenda = $request->get_param("agenda");
+   $dateFormat = $request->get_param("format");
 
    $sites_args = array(
      'public' => 1 // los posts tb solo publicos?
@@ -173,20 +169,40 @@ function lnk_get_site_posts(WP_REST_Request $request){
    $allPosts = array();
    if(is_array($sites))
    foreach($sites as $site_key => $site){
-     switch_to_blog($site->blog_id);
+    switch_to_blog($site->blog_id);
 
-     $posts_args = array(
-      'numberposts' => $count,
-      'meta_query' => array(
-        'relation' => 'OR',
-        array(
-          'key' => 'lnk_onhome',
-          'compare' => '=',
-          'value' => '1'
+    if($agenda == '1') {
+      $posts_args = array(
+        'numberposts' => $count,
+        'meta_query' => array(
+          'relation' => 'AND',
+          array(
+            'key' => 'lnk_onagenda',
+            'compare' => '=',
+            'value' => '1'
+          ),
+          array(
+            'key' => 'lnk_agenda',
+            'compare' => '>=',
+            'value' => date('Y-m-d')
+          )                    
         )
-    )
-   );
-     $posts = get_posts($posts_args);
+      );
+    } else {
+      $posts_args = array(
+        'numberposts' => $count,
+        'meta_query' => array(
+          'relation' => 'OR',
+          array(
+            'key' => 'lnk_onhome',
+            'compare' => '=',
+            'value' => '1'
+          )
+        )
+      );
+    }
+
+    $posts = get_posts($posts_args);
 
      foreach($posts as $post_key => $post){
        $posts[$post_key]->blog = array(
@@ -195,19 +211,25 @@ function lnk_get_site_posts(WP_REST_Request $request){
          'blog_url' => $site->path
        );
 
-
        $terms = wp_get_post_categories($post->ID);
        if(is_array($terms)){
          $posts[$post_key]->the_term = get_term($terms[0])->slug;
        }
-
+       $posts[$post_key]->lnk_onagenda = get_post_meta($post->ID,'lnk_onagenda',true);
+       $dateAgenda = get_post_meta($post->ID,'lnk_agenda',true);
+       $posts[$post_key]->lnk_agenda = date($dateFormat,strftime($dateAgenda));
        $posts[$post_key]->thumbnail = get_the_post_thumbnail_url($post->ID);
      }
 
      $allPosts = array_merge($allPosts,$posts);
      restore_current_blog();
    }
-   usort($allPosts,'lnk_compare_by_date');
+   if($agenda == '1') {
+    usort($allPosts,'lnk_compare_by_lnk_agenda');
+   } else {
+    usort($allPosts,'lnk_compare_by_date');
+  }
+   $allPosts = array_slice($allPosts,0,$count);
    return new WP_REST_Response($allPosts, 200 );
  }
 
@@ -279,3 +301,13 @@ function lnk_get_sites_featured_posts(WP_REST_Request $request){
      return 1;
    }
  }
+
+ function lnk_compare_by_lnk_agenda($post1, $post2){
+  if($post1->lnk_agenda == $post2->lnk_agenda) {
+    return 0;
+  } else if ($post1->lnk_agenda > $post2->lnk_agenda) {
+    return 1;
+  } else {
+    return -1;
+  }
+}
