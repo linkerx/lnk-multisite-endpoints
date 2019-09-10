@@ -217,18 +217,21 @@ function lnk_get_site_posts(WP_REST_Request $request){
        }
        $posts[$post_key]->lnk_onagenda = get_post_meta($post->ID,'lnk_onagenda',true);
        $dateAgenda = get_post_meta($post->ID,'lnk_agenda',true);
-       $posts[$post_key]->lnk_agenda = date($dateFormat,strftime($dateAgenda));
+       $posts[$post_key]->lnk_agenda = date($dateFormat,strtotime($dateAgenda));
+       $posts[$post_key]->lnk_agenda_unformatted = $dateAgenda;
        $posts[$post_key]->thumbnail = get_the_post_thumbnail_url($post->ID);
      }
 
      $allPosts = array_merge($allPosts,$posts);
      restore_current_blog();
    }
+
    if($agenda == '1') {
     usort($allPosts,'lnk_compare_by_lnk_agenda');
    } else {
     usort($allPosts,'lnk_compare_by_date');
   }
+
    $allPosts = array_slice($allPosts,0,$count);
    return new WP_REST_Response($allPosts, 200 );
  }
@@ -303,9 +306,9 @@ function lnk_get_sites_featured_posts(WP_REST_Request $request){
  }
 
  function lnk_compare_by_lnk_agenda($post1, $post2){
-  if($post1->lnk_agenda == $post2->lnk_agenda) {
+  if($post1->lnk_agenda_unformatted == $post2->lnk_agenda_unformatted) {
     return 0;
-  } else if ($post1->lnk_agenda > $post2->lnk_agenda) {
+  } else if ($post1->lnk_agenda_unformatted > $post2->lnk_agenda_unformatted) {
     return 1;
   } else {
     return -1;
