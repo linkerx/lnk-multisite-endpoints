@@ -225,7 +225,7 @@ function lnk_get_site_posts(WP_REST_Request $request){
        $dateAgenda = get_post_meta($post->ID,'lnk_agenda',true);
        $posts[$post_key]->lnk_agenda = date($dateFormat,strtotime($dateAgenda));
        $posts[$post_key]->lnk_agenda_unformatted = $dateAgenda;
-       $posts[$post_key]->thumbnail = get_the_post_thumbnail_url($post->ID);
+       $posts[$post_key]->thumbnail = get_the_post_thumbnail_url($post->ID,'thumbnail');
      }
 
      $allPosts = array_merge($allPosts,$posts);
