@@ -101,6 +101,9 @@ function lnk_get_site(WP_REST_Request $request){
   switch_to_blog($site->blog_id);
 
   $site->frontpage = get_option('page_on_front');
+  $site->barra_izq = get_option('curza_barra_izq_abierta',0);
+  $site->barra_der = get_option('curza_barra_der_abierta',0);
+  
   if($site->frontpage != 0){
     $site->page = get_post($site->frontpage);
   }
