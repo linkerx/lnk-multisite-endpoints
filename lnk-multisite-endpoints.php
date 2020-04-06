@@ -103,7 +103,7 @@ function lnk_get_site(WP_REST_Request $request){
   $site->frontpage = get_option('page_on_front');
   $site->barra_izq = get_option('curza_barra_izq_abierta',0);
   $site->barra_der = get_option('curza_barra_der_abierta',0);
-  
+
   if($site->frontpage != 0){
     $site->page = get_post($site->frontpage);
   }
@@ -124,38 +124,56 @@ function lnk_get_site(WP_REST_Request $request){
  * @return WP_REST_Response $sites Datos del sitio
  */
 function lnk_get_site_posts(WP_REST_Request $request){
-
   $sites_args = array(
     'path' => '/'.$request['name'].'/' // los posts tb solo publicos?
   );
+  
   $sites = get_sites($sites_args);
   if(count($sites) != 1){
     return new WP_REST_Response('no existe el área', 404 );
   }
-  $site = $sites[0];
 
-  switch_to_blog($site->blog_id);
+  $this_site = $sites[0];
+  switch_to_blog($this_site->blog_id);
+  $posts_sitio = get_posts();
+  $all_sites = get_sites();
+  $other_posts = array();
 
-  $posts = get_posts($posts_args);
-
-  foreach($posts as $post_key => $post){
-    $posts[$post_key]->blog = array(
-      'blog_id' => $site->blog_id,
-      'blog_name' => get_bloginfo('name'),
-      'blog_url' => $site->path
+  if(is_array($all_sites))
+  foreach($all_sites as $site_key => $site){
+   switch_to_blog($site->blog_id);
+    $posts_args = array(
+      'numberposts' => 12,
+      'meta_query' => array(
+        'relation' => 'OR',
+        array(
+          'key' => 'lnk_compartido_'.$this_site->blog_id,
+          'compare' => '=',
+          'value' => '1'
+        )                 
+      )
     );
+    $posts = get_posts($post_args);
 
-    $terms = wp_get_post_categories($post->ID);
-    if(is_array($terms)){
-      $posts[$post_key]->the_term = get_term($terms[0])->slug;
+    foreach($posts as $post_key => $post){
+      $posts[$post_key]->blog = array(
+        'blog_id' => $site->blog_id,
+        'blog_name' => get_bloginfo('name'),
+        'blog_url' => $site->path
+      );
+      $terms = wp_get_post_categories($post->ID);
+      if(is_array($terms)){
+        $posts[$post_key]->the_term = get_term($terms[0])->slug;
+      }
+      $posts[$post_key]->thumbnail = get_the_post_thumbnail_url($post->ID,'thumbnail');
     }
-
-    $posts[$post_key]->thumbnail = get_the_post_thumbnail_url($post->ID);
+    $other_posts = array_merge($other_posts,$posts);
   }
-
   restore_current_blog();
-
-  return new WP_REST_Response($posts, 200 );
+  $all_posts = array_merge($posts_sitio, $other_posts);
+  usort($all_posts,'lnk_compare_by_date');
+  $all_posts = array_slice($all_posts,0,12);
+  return new WP_REST_Response($all_posts, 200);
 }
 
 
